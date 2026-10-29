@@ -1,0 +1,69 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111111">
+<title>Zain's Family Connect</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: white;
+  text-align: center;
+}
+.card {
+  max-width: 420px;
+  margin: 35px auto;
+  padding: 22px;
+  border: 2px solid #d4af37;
+  border-radius: 20px;
+  background: #202020;
+}
+h1 { color: #d4af37; }
+button {
+  width: 100%;
+  padding: 15px;
+  margin: 9px 0;
+  border: 0;
+  border-radius: 10px;
+  background: #d4af37;
+  color: #111;
+  font-size: 17px;
+  font-weight: bold;
+}
+#status {
+  color: #ffe28a;
+  min-height: 22px;
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>❤️ Zain's Family Connect</h1>
+  <p>Stay connected with your family</p>
+  <p id="status">Welcome, Family!</p>
+
+  <button onclick="show('Family Chat is coming next!')">
+    💬 Family Chat
+  </button>
+  <button onclick="show('Voice Call is coming next!')">
+    📞 Voice Call
+  </button>
+  <button onclick="show('Video Call is coming next!')">
+    🎥 Video Call
+  </button>
+  <button onclick="show('Screen sharing requires permission.')">
+    📱 Screen Sharing
+  </button>
+</div>
+<script>
+function show(message) {
+  document.getElementById('status').textContent = message;
+}
+</script>
+</body>
+</html>
