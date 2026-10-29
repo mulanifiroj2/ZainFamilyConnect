@@ -7,63 +7,152 @@
 <meta name="theme-color" content="#111111">
 <title>Zain's Family Connect</title>
 <style>
-body {
-  margin: 0;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-  background: #111;
-  color: white;
-  text-align: center;
-}
-.card {
-  max-width: 420px;
-  margin: 35px auto;
-  padding: 22px;
-  border: 2px solid #d4af37;
-  border-radius: 20px;
-  background: #202020;
-}
-h1 { color: #d4af37; }
-button {
-  width: 100%;
-  padding: 15px;
-  margin: 9px 0;
-  border: 0;
-  border-radius: 10px;
-  background: #d4af37;
-  color: #111;
-  font-size: 17px;
-  font-weight: bold;
-}
-#status {
-  color: #ffe28a;
-  min-height: 22px;
-}
+*{box-sizing:border-box}
+body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif;padding:18px}
+.card{max-width:480px;margin:20px auto;border:2px solid #d4af37;border-radius:20px;padding:22px;background:#202020}
+h1{color:#f5c451;text-align:center;font-size:27px}
+h2{color:#f5c451}
+input,button{width:100%;padding:13px;margin:7px 0;border-radius:9px;font-size:16px}
+input{background:#333;color:white;border:1px solid #777}
+button{background:#f5c451;color:#222;border:0;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.5}
+#chat{height:300px;overflow:auto;background:#151515;padding:10px;border-radius:10px}
+.msg{padding:9px;margin:8px 0;background:#333;border-radius:9px;overflow-wrap:anywhere}
+.small{font-size:13px;color:#ccc}
+.hidden{display:none}
+#status{color:#f5c451;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 <div class="card">
-  <h1>❤️ Zain's Family Connect</h1>
-  <p>Stay connected with your family</p>
-  <p id="status">Welcome, Family!</p>
+<h1>❤️ Zain's Family Connect</h1>
+<p style="text-align:center">Stay connected with your family</p>
 
-  <button onclick="show('Family Chat is coming next!')">
-    💬 Family Chat
-  </button>
-  <button onclick="show('Voice Call is coming next!')">
-    📞 Voice Call
-  </button>
-  <button onclick="show('Video Call is coming next!')">
-    🎥 Video Call
-  </button>
-  <button onclick="show('Screen sharing requires permission.')">
-    📱 Screen Sharing
-  </button>
+<div id="auth">
+<h2>Family Login</h2>
+<input id="email" type="email" placeholder="Email address" autocomplete="email">
+<input id="password" type="password" placeholder="Password (minimum 6 characters)" autocomplete="current-password">
+<button id="login">Login</button>
+<button id="register">Create Family Account</button>
+<p class="small">Use your own email and a strong password. Share accounts only with trusted family members.</p>
 </div>
+
+<div id="room" class="hidden">
+<p id="welcome"></p>
+<button id="logout">Logout</button>
+<h2>💬 Family Chat</h2>
+<div id="chat"></div>
+<input id="message" maxlength="1000" placeholder="Type your message...">
+<button id="send">Send Message</button>
+</div>
+<p id="status" role="status">Connecting...</p>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
-function show(message) {
-  document.getElementById('status').textContent = message;
+const firebaseConfig = {
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "zainfamilyconnect.firebaseapp.com",
+  databaseURL: "https://zainfamilyconnect-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "zainfamilyconnect",
+  storageBucket: "zainfamilyconnect.firebasestorage.app",
+  messagingSenderId: "684377643320",
+  appId: "PASTE_YOUR_APP_ID"
+};
+
+const $ = id => document.getElementById(id);
+let auth, db, currentUser, chatListener = null;
+
+try {
+  if (firebaseConfig.apiKey.startsWith("PASTE_") ||
+      firebaseConfig.appId.startsWith("PASTE_")) {
+    throw new Error("Firebase API key aur App ID abhi paste karna baaki hai.");
+  }
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.database();
+  $("status").textContent = "Firebase connected. Please log in.";
+} catch (e) {
+  $("status").textContent = e.message;
 }
+
+$("login").onclick = async () => {
+  try {
+    await auth.signInWithEmailAndPassword(
+      $("email").value.trim(), $("password").value
+    );
+  } catch (e) { $("status").textContent = e.message; }
+};
+
+$("register").onclick = async () => {
+  try {
+    await auth.createUserWithEmailAndPassword(
+      $("email").value.trim(), $("password").value
+    );
+  } catch (e) { $("status").textContent = e.message; }
+};
+
+$("logout").onclick = () => auth.signOut();
+
+if (auth) auth.onAuthStateChanged(user => {
+  currentUser = user;
+  $("auth").classList.toggle("hidden", !!user);
+  $("room").classList.toggle("hidden", !user);
+  if (chatListener) {
+    db.ref("familyMessages").off("value", chatListener);
+    chatListener = null;
+  }
+  $("chat").replaceChildren();
+
+  if (user) {
+    $("welcome").textContent = "Logged in: " + user.email;
+    const ref = db.ref("familyMessages").limitToLast(100);
+    chatListener = snapshot => {
+      const chat = $("chat");
+      chat.replaceChildren();
+      snapshot.forEach(child => {
+        const m = child.val();
+        const item = document.createElement("div");
+        item.className = "msg";
+        const who = document.createElement("strong");
+        who.textContent = m.email || "Family member";
+        const body = document.createElement("div");
+        body.textContent = m.text || "";
+        item.append(who, body);
+        chat.appendChild(item);
+      });
+      chat.scrollTop = chat.scrollHeight;
+    };
+    ref.on("value", chatListener, err => {
+      $("status").textContent = "Database error: " + err.message;
+    });
+    $("status").textContent = "Logged in. Check database access rules.";
+  } else {
+    $("status").textContent = "Please log in.";
+  }
+});
+
+$("send").onclick = async () => {
+  const text = $("message").value.trim();
+  if (!currentUser || !text) return;
+  $("send").disabled = true;
+  try {
+    await db.ref("familyMessages").push({
+      uid: currentUser.uid,
+      email: currentUser.email,
+      text: text,
+      createdAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    $("message").value = "";
+    $("status").textContent = "Message sent.";
+  } catch (e) {
+    $("status").textContent = "Could not send: " + e.message;
+  } finally {
+    $("send").disabled = false;
+  }
+};
 </script>
 </body>
 </html>
