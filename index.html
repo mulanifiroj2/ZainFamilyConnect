@@ -3,339 +3,311 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Zain's Family Connect</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101a17">
+<title>My Family</title>
 <style>
+:root{--gold:#e8c45b;--bg:#101a17;--panel:#182520;--line:#34463d}
 *{box-sizing:border-box}
-body{margin:0;background:#111;color:white;font-family:Arial,sans-serif;padding:15px}
-.card{max-width:520px;margin:20px auto;border:2px solid #d4af37;border-radius:18px;padding:20px;background:#191919}
-h1,h2{color:#f5c451;text-align:center}
-input,button{width:100%;padding:13px;margin:7px 0;border-radius:9px;font-size:16px}
-input{background:#333;color:white;border:1px solid #777}
-button{background:#f5c451;color:#222;border:0;font-weight:bold;cursor:pointer}
+html,body{margin:0;width:100%;min-height:100%;background:var(--bg);color:#fff;font-family:Arial,sans-serif}
+body{min-height:100dvh}
+button,input{font:inherit}
+button{border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}
 button:disabled{opacity:.5}
+input{width:100%;padding:13px;border-radius:11px;border:1px solid #52635a;background:#26342e;color:#fff}
 .hidden{display:none!important}
-#chat{height:300px;overflow:auto;background:#151515;padding:10px;border-radius:10px}
-.msg{padding:9px;margin:8px 0;background:#333;border-radius:9px;overflow-wrap:anywhere}
-.small{font-size:13px;color:#ccc}
-#status{color:#f5c451;overflow-wrap:anywhere}
-.member{padding:12px;margin:10px 0;background:#292929;border:1px solid #555;border-radius:10px}
-.member button{width:48%;display:inline-block}
-.approve{background:#39b96b}
-.reject{background:#d9534f;color:white}
+#auth,#pending,#rejected{width:min(100% - 28px,480px);margin:7vh auto;background:var(--panel);border:1px solid var(--gold);border-radius:20px;padding:22px}
+h1,h2{color:var(--gold);text-align:center}
+h1{font-size:30px}
+.primary{width:100%;background:var(--gold);color:#172019;margin-top:9px}
+.secondary{width:100%;background:#34463d;color:white;margin-top:8px}
+.small{font-size:12px;color:#bdc9c1;line-height:1.5}
+#room{height:100dvh;display:flex;flex-direction:column;max-width:1100px;margin:auto;background:var(--bg);border-left:1px solid #34463d;border-right:1px solid #34463d}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#182520;border-bottom:1px solid var(--line)}
+.brand{font-size:21px;font-weight:bold;color:var(--gold)}
+#logout{background:#34463d;color:white}
+#welcome{font-size:12px;color:#bdc9c1;margin:6px 14px}
+#adminPanel{max-height:26vh;overflow:auto;padding:8px 12px;border-bottom:1px solid var(--line);background:#14201b}
+#adminPanel h2{margin:4px}
+.member,.contact{padding:10px;margin:7px 0;background:#26342e;border:1px solid #52635a;border-radius:12px;overflow-wrap:anywhere}
+.member button{margin:4px}
+.approve{background:#39b96b;color:#102016}
+.reject,.danger{background:#a83232;color:white}
+.nav{display:flex;gap:8px;padding:8px 10px;background:#182520;border-bottom:1px solid var(--line)}
+.nav button{flex:1;background:#34463d;color:white}
+.nav button.active{background:var(--gold);color:#172019}
+#contacts{flex:1;min-height:0;overflow:auto;padding:12px}
+.contact{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.contact button{background:var(--gold);color:#172019;white-space:nowrap}
+.chat-title{flex:none;padding:9px 14px;margin:0;text-align:left;font-size:17px;border-bottom:1px solid var(--line)}
+#chat{flex:1;min-height:0;overflow:auto;padding:12px;background:#0e1915}
+.msg{max-width:min(88%,680px);padding:10px 12px;margin:8px 0;background:#263a30;border:1px solid #385345;border-radius:14px 14px 14px 4px;overflow-wrap:anywhere}
+.msg.mine{margin-left:auto;background:#284b3a;border-radius:14px 14px 4px 14px}
+.msg-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px}
+.msg-who{font-weight:bold;color:#f5d77b;font-size:12px}
+.msg-time{font-size:10px;color:#c1cec6;white-space:nowrap}
+.msg-text{font-size:16px;line-height:1.45;white-space:pre-wrap}
+.msg-actions{text-align:right;margin-top:6px}
+.delete-one{background:transparent;color:#ffc0b7;border:1px solid #8c5149;padding:4px 8px;font-size:11px}
+.composer{display:flex;gap:8px;padding:10px;padding-bottom:max(10px,env(safe-area-inset-bottom));background:#182520;border-top:1px solid var(--line)}
+#message{flex:1;min-width:0;font-size:16px;border-radius:24px;padding:12px 15px}
+#send{background:var(--gold);color:#172019;border-radius:24px}
+#status{padding:6px;text-align:center;color:var(--gold);font-size:12px;background:#182520;overflow-wrap:anywhere}
+@media(max-width:480px){#adminPanel{max-height:25vh}.msg{max-width:94%}}
 </style>
 </head>
 <body>
-<div class="card">
-<h1>❤️ Zain's Family Connect</h1>
-<p style="text-align:center">Stay connected with your Family</p>
-
-<div id="auth">
+<section id="auth">
+<h1>❤️ My Family</h1>
+<p style="text-align:center">Stay connected with your family</p>
 <h2>Family Login</h2>
-<input id="email" type="email" placeholder="Email address">
-<input id="password" type="password" placeholder="Password (minimum 6 characters)">
-<button id="login">Login</button>
-<button id="register">Create Family Account</button>
-<p class="small">Only trusted family members should register.</p>
-</div>
-
-<div id="pending" class="hidden">
-<h2>Approval Pending</h2>
-<p>Your family account is waiting for Admin approval.</p>
-<p>Please wait for the Admin to approve your account.</p>
-<button id="pendingLogout">Logout</button>
-</div>
-
-<div id="rejected" class="hidden">
-<h2>Account Not Approved</h2>
+<input id="email" type="email" placeholder="Email address" autocomplete="username">
+<input id="password" type="password" placeholder="Password (minimum 6 characters)" autocomplete="current-password">
+<button class="primary" id="login">Login</button>
+<button class="secondary" id="register">Create Family Account</button>
+<p class="small">Only trusted family members should register. New accounts need Admin approval.</p>
+</section>
+<section id="pending" class="hidden">
+<h1>❤️ My Family</h1><h2>Approval Pending</h2>
+<p>Your account is waiting for Admin approval.</p>
+<button class="primary" id="pendingLogout">Logout</button>
+</section>
+<section id="rejected" class="hidden">
+<h1>❤️ My Family</h1><h2>Account Not Approved</h2>
 <p>Please contact your family Admin.</p>
-<button id="rejectedLogout">Logout</button>
-</div>
-
-<div id="room" class="hidden">
+<button class="primary" id="rejectedLogout">Logout</button>
+</section>
+<main id="room" class="hidden">
+<header class="topbar"><div class="brand">❤️ My Family</div><button id="logout">Logout</button></header>
 <p id="welcome"></p>
-<button id="logout">Logout</button>
-
-<div id="adminPanel" class="hidden">
+<section id="adminPanel" class="hidden">
 <h2>Admin Dashboard</h2>
-<p>Family Member Approval</p>
+<button class="danger" id="deleteAll">Delete All Group Messages</button>
 <div id="membersList">Loading members...</div>
-</div>
-
-<h2>💬 Family Chat</h2>
+<h3 style="color:#e8c45b">All Personal Chats (Admin)</h3>
+<div id="adminChats">Loading...</div>
+</section>
+<nav class="nav">
+<button id="groupTab" class="active">Family Group</button>
+<button id="peopleTab">Personal Chat</button>
+</nav>
+<section id="contacts" class="hidden">
+<h2>Family Members</h2>
+<p class="small">किसी सदस्य को चुनकर निजी चैट शुरू करें।</p>
+<div id="contactsList">Loading members...</div>
+</section>
+<h2 class="chat-title" id="chatTitle">💬 Family Group Chat</h2>
 <div id="chat"></div>
-<input id="message" maxlength="1000" placeholder="Type your message...">
-<button id="send">Send Message</button>
+<div class="composer">
+<input id="message" maxlength="1000" placeholder="Message लिखें..." autocomplete="off">
+<button id="send">Send</button>
 </div>
-
-<p id="status" role="status">Connecting...</p>
-</div>
+<div id="status">Connecting...</div>
+</main>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
-
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDl_6i_Crv0j2S3Q4AvhD039YZ-d-VQgp0",
-  authDomain: "zainfamilyconnect.firebaseapp.com",
-  databaseURL: "https://zainfamilyconnect-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "zainfamilyconnect",
-  storageBucket: "zainfamilyconnect.firebasestorage.app",
-  messagingSenderId: "684377643320",
-  appId: "1:684377643320:web:8fc7c19742ab52528b89cd"
+const firebaseConfig={
+apiKey:"AIzaSyDl6i_Crv0j2S3Q4AvhD039YZ-d-VQgp0",
+authDomain:"zainfamilyconnect.firebaseapp.com",
+databaseURL:"https://zainfamilyconnect-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId:"zainfamilyconnect",
+storageBucket:"zainfamilyconnect.firebasestorage.app",
+messagingSenderId:"684377643320",
+appId:"1:684377643320:web:8fc7c19742ab52528b89cd"
 };
-
-const ADMIN_UID = "XHgduM275reB7g3DN2uss9kzwCm1";
-const ADMIN_EMAIL = "mulanifiroj2@gmail.com";
-
+const ADMIN_UID="XHgduM275reB7g3DN2uss9kzwCm1";
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.database();
-
-const $ = id => document.getElementById(id);
-let currentUser = null;
-let chatListener = null;
-let memberListener = null;
-
-function show(id) {
-  ["auth","pending","rejected","room"].forEach(x => $(x).classList.add("hidden"));
-  $(id).classList.remove("hidden");
+const auth=firebase.auth(),db=firebase.database();
+const $=id=>document.getElementById(id);
+let currentUser=null,chatListener=null,memberListener=null,adminPrivateListener=null,activeMode="group",activeChatId=null,activeOther=null;
+const isAdmin=()=>!!currentUser&&currentUser.uid===ADMIN_UID;
+function status(s){$("status").textContent=s}
+function show(id){["auth","pending","rejected","room"].forEach(x=>$(x).classList.add("hidden"));$(id).classList.remove("hidden")}
+function stopChat(){
+if(chatListener){
+const p=activeMode==="group"?"familyMessages":"privateChats/"+activeChatId+"/messages";
+db.ref(p).off("value",chatListener);chatListener=null;
+}}
+function stopAll(){
+stopChat();
+if(memberListener){db.ref("members").off("value",memberListener);memberListener=null}
+if(adminPrivateListener){db.ref("privateChats").off("value",adminPrivateListener);adminPrivateListener=null}
 }
-
-function status(message) {
-  $("status").textContent = message;
-}
-
-function stopListeners() {
-  if (chatListener) {
-    db.ref("familyMessages").off("value", chatListener);
-    chatListener = null;
-  }
-  if (memberListener) {
-    db.ref("members").off("value", memberListener);
-    memberListener = null;
-  }
-}
-
-$("login").onclick = async () => {
-  try {
-    status("Logging in...");
-    await auth.signInWithEmailAndPassword(
-      $("email").value.trim(),
-      $("password").value
-    );
-  } catch(e) {
-    status(e.message);
-  }
+["logout","pendingLogout","rejectedLogout"].forEach(id=>$(id).onclick=()=>auth.signOut());
+$("login").onclick=async()=>{
+try{status("Logging in...");await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}
+catch(e){status(e.message)}
 };
-
-$("register").onclick = async () => {
-  try {
-    if (!$("email").value.trim() || $("password").value.length < 6) {
-      status("Enter email and password (minimum 6 characters).");
-      return;
-    }
-    status("Creating account...");
-    await auth.createUserWithEmailAndPassword(
-      $("email").value.trim(),
-      $("password").value
-    );
-  } catch(e) {
-    status(e.message);
-  }
+$("register").onclick=async()=>{
+try{
+if(!$("email").value.trim()||$("password").value.length<6){status("Enter email and password (minimum 6 characters).");return}
+await auth.createUserWithEmailAndPassword($("email").value.trim(),$("password").value)
+}catch(e){status(e.message)}
 };
-
-$("logout").onclick = () => auth.signOut();
-$("pendingLogout").onclick = () => auth.signOut();
-$("rejectedLogout").onclick = () => auth.signOut();
-
-async function loadMember(user) {
-  const ref = db.ref("members/" + user.uid);
-
-  let snapshot = await ref.once("value");
-
-  if (!snapshot.exists()) {
-    try {
-      await ref.set({
-        email: user.email || "",
-        status: "pending",
-        createdAt: firebase.database.ServerValue.TIMESTAMP
-      });
-    } catch(e) {
-      // If another login created the record first, read it again.
-    }
-    snapshot = await ref.once("value");
-  }
-
-  return snapshot.val();
+async function loadMember(u){
+const r=db.ref("members/"+u.uid);let s=await r.once("value");
+if(!s.exists()){
+try{await r.set({email:u.email||"",status:"pending",createdAt:firebase.database.ServerValue.TIMESTAMP})}catch(e){}
+s=await r.once("value");
 }
-
-function startChat() {
-  const chatRef = db.ref("familyMessages").limitToLast(100);
-
-  chatListener = snapshot => {
-    const chat = $("chat");
-    chat.replaceChildren();
-
-    snapshot.forEach(child => {
-      const m = child.val() || {};
-      const item = document.createElement("div");
-      item.className = "msg";
-
-      const who = document.createElement("strong");
-      who.textContent = m.email || "Family member";
-
-      const text = document.createElement("div");
-      text.textContent = m.text || "";
-
-      item.append(who, text);
-      chat.appendChild(item);
-    });
-
-    chat.scrollTop = chat.scrollHeight;
-  };
-
-  chatRef.on("value", chatListener, e => status(e.message));
+return s.val();
 }
-
-function startAdminDashboard() {
-  $("adminPanel").classList.remove("hidden");
-
-  memberListener = snapshot => {
-    const list = $("membersList");
-    list.replaceChildren();
-
-    if (!snapshot.exists()) {
-      list.textContent = "No family members registered yet.";
-      return;
-    }
-
-    snapshot.forEach(child => {
-      const uid = child.key;
-      const member = child.val() || {};
-
-      if (uid === ADMIN_UID) return;
-
-      const card = document.createElement("div");
-      card.className = "member";
-
-      const email = document.createElement("p");
-      email.textContent = member.email || uid;
-
-      const state = document.createElement("p");
-      state.textContent = "Status: " + (member.status || "pending");
-
-      card.append(email, state);
-
-      if (member.status !== "approved" && member.status !== "rejected") {
-        const approve = document.createElement("button");
-        approve.className = "approve";
-        approve.textContent = "Approve";
-        approve.onclick = () => changeMember(uid, "approved");
-
-        const reject = document.createElement("button");
-        reject.className = "reject";
-        reject.textContent = "Reject";
-        reject.onclick = () => changeMember(uid, "rejected");
-
-        card.append(approve, reject);
-      }
-
-      list.appendChild(card);
-    });
-  };
-
-  db.ref("members").on("value", memberListener, e => status(e.message));
+function fmt(t){
+return typeof t==="number"?new Date(t).toLocaleString("hi-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}):"पुराना मैसेज";
 }
-
-async function changeMember(uid, newStatus) {
-  try {
-    await db.ref("members/" + uid).update({
-      status: newStatus,
-      reviewedAt: firebase.database.ServerValue.TIMESTAMP
-    });
-    status("Member status updated: " + newStatus);
-  } catch(e) {
-    status("Could not update member: " + e.message);
-  }
+function renderMessages(snapshot){
+const box=$("chat");box.replaceChildren();
+snapshot.forEach(ch=>{
+const m=ch.val()||{},id=ch.key,el=document.createElement("div");
+el.className="msg"+(m.uid===currentUser.uid?" mine":"");
+const head=document.createElement("div");head.className="msg-head";
+const who=document.createElement("span");who.className="msg-who";who.textContent=m.email||"Family member";
+const time=document.createElement("time");time.className="msg-time";time.textContent=fmt(m.createdAt);
+head.append(who,time);
+const body=document.createElement("div");body.className="msg-text";body.textContent=m.text||"";
+el.append(head,body);
+if(isAdmin()||m.uid===currentUser.uid){
+const a=document.createElement("div");a.className="msg-actions";
+const b=document.createElement("button");b.className="delete-one";b.textContent="Delete";b.onclick=()=>deleteOne(id);
+a.append(b);el.append(a);
 }
-
-auth.onAuthStateChanged(async user => {
-  stopListeners();
-  $("adminPanel").classList.add("hidden");
-  $("chat").replaceChildren();
-  currentUser = user;
-
-  if (!user) {
-    show("auth");
-    status("Please log in.");
-    return;
-  }
-
-  try {
-    $("welcome").textContent = "Logged in: " + (user.email || "");
-
-    if (user.uid === ADMIN_UID) {
-      show("room");
-      status("Welcome Admin.");
-      startAdminDashboard();
-      startChat();
-      return;
-    }
-
-    const member = await loadMember(user);
-
-    if (!member || member.status === "pending") {
-      show("pending");
-      status("Waiting for Admin approval.");
-      return;
-    }
-
-    if (member.status === "rejected") {
-      show("rejected");
-      status("Your account was not approved.");
-      return;
-    }
-
-    if (member.status === "approved") {
-      show("room");
-      status("Welcome to Family Connect.");
-      startChat();
-      return;
-    }
-
-    show("pending");
-    status("Waiting for Admin approval.");
-
-  } catch(e) {
-    show("auth");
-    status("Access error: " + e.message);
-  }
+box.append(el);
 });
-
-$("send").onclick = async () => {
-  const text = $("message").value.trim();
-  if (!currentUser || !text) return;
-
-  $("send").disabled = true;
-
-  try {
-    await db.ref("familyMessages").push({
-      uid: currentUser.uid,
-      email: currentUser.email || "",
-      text: text,
-      createdAt: firebase.database.ServerValue.TIMESTAMP
-    });
-
-    $("message").value = "";
-    status("Message sent.");
-  } catch(e) {
-    status("Could not send: " + e.message);
-  } finally {
-    $("send").disabled = false;
-  }
+box.scrollTop=box.scrollHeight;
+}
+function startChat(){
+stopChat();
+const path=activeMode==="group"?"familyMessages":"privateChats/"+activeChatId+"/messages";
+const ref=db.ref(path).limitToLast(200);
+chatListener=renderMessages;
+ref.on("value",chatListener,e=>status(e.message));
+}
+async function deleteOne(id){
+if(!confirm("यह मैसेज डिलीट करें?"))return;
+try{
+const p=activeMode==="group"?"familyMessages/"+id:"privateChats/"+activeChatId+"/messages/"+id;
+await db.ref(p).remove();status("Message deleted.");
+}catch(e){status("Delete failed: "+e.message)}
+}
+$("deleteAll").onclick=async()=>{
+if(!isAdmin()||!confirm("सभी Group Messages डिलीट करें?"))return;
+try{await db.ref("familyMessages").remove();status("All group messages deleted.")}
+catch(e){status(e.message)}
 };
+async function changeMember(uid,s){
+try{await db.ref("members/"+uid).update({status:s,reviewedAt:firebase.database.ServerValue.TIMESTAMP});status("Member status updated.")}
+catch(e){status(e.message)}
+}
+function startAdminPrivateChats(){
+if(!isAdmin())return;
+adminPrivateListener=snap=>{
+const box=$("adminChats");box.replaceChildren();
+if(!snap.exists()){box.textContent="No personal chats yet.";return}
+snap.forEach(c=>{
+const id=c.key,v=c.val()||{},parts=v.participants||{},uids=Object.keys(parts);
+const row=document.createElement("div");row.className="member";
+const label=document.createElement("p");label.textContent="Private chat: "+uids.join(" ↔ ");
+const b=document.createElement("button");b.textContent="Read Chat";
+b.onclick=()=>{
+activeMode="private";activeChatId=id;activeOther=null;
+$("contacts").classList.add("hidden");$("chat").classList.remove("hidden");
+$("chatTitle").textContent="Admin View — "+uids.join(" ↔ ");startChat();
+};
+row.append(label,b);box.append(row);
+});
+};
+db.ref("privateChats").on("value",adminPrivateListener,e=>status("Admin chat list: "+e.message));
+}
+function startMembers(){
+if(memberListener)db.ref("members").off("value",memberListener);
+memberListener=snap=>{
+const contacts=$("contactsList"),admin=$("membersList"),allAdmin=$("adminChats");
+contacts.replaceChildren();admin.replaceChildren();allAdmin.replaceChildren();
+snap.forEach(c=>{
+const uid=c.key,m=c.val()||{};
+if(uid===ADMIN_UID)return;
+const state=m.status||"pending";
+if(state==="approved"){
+const row=document.createElement("div");row.className="contact";
+const label=document.createElement("span");label.textContent=m.email||uid;
+const b=document.createElement("button");b.textContent="Chat";b.onclick=()=>openPrivate(uid,m.email||"Family member");
+row.append(label,b);contacts.append(row);
+}
+if(isAdmin()){
+const row=document.createElement("div");row.className="member";
+const p=document.createElement("p");p.textContent=(m.email||uid)+" — "+state;row.append(p);
+if(state!=="approved"){
+const b=document.createElement("button");b.className="approve";b.textContent="Approve";b.onclick=()=>changeMember(uid,"approved");row.append(b);
+}else{
+const b=document.createElement("button");b.className="reject";b.textContent="Revoke";b.onclick=()=>changeMember(uid,"rejected");row.append(b);
+}
+admin.append(row);
+}
+});
+if(!contacts.children.length)contacts.textContent="No approved members yet.";
+if(!admin.children.length)admin.textContent="No members.";
+};
+db.ref("members").on("value",memberListener,e=>status(e.message));
+}
+function chatId(a,b){return[a,b].sort().join("_")}
+async function openPrivate(uid,email){
+try{
+activeMode="private";activeOther={uid,email};activeChatId=chatId(currentUser.uid,uid);
+const meta=db.ref("privateChats/"+activeChatId);const snap=await meta.once("value");
+if(!snap.exists()){
+const participants={};participants[currentUser.uid]=true;participants[uid]=true;
+await meta.set({participants:participants,createdAt:firebase.database.ServerValue.TIMESTAMP});
+}
+$("contacts").classList.add("hidden");$("chat").classList.remove("hidden");
+$("chatTitle").textContent="🔒 "+email;startChat();
+$("groupTab").classList.remove("active");$("peopleTab").classList.add("active");
+status("Personal chat — Admin can read this chat.");
+}catch(e){status("Could not open personal chat: "+e.message)}
+}
+$("groupTab").onclick=()=>{
+activeMode="group";activeChatId=null;activeOther=null;
+$("contacts").classList.add("hidden");$("chat").classList.remove("hidden");
+$("chatTitle").textContent="💬 Family Group Chat";
+$("groupTab").classList.add("active");$("peopleTab").classList.remove("active");startChat();
+};
+$("peopleTab").onclick=()=>{
+stopChat();$("chat").classList.add("hidden");$("contacts").classList.remove("hidden");
+$("chatTitle").textContent="Personal Chat";
+$("groupTab").classList.remove("active");$("peopleTab").classList.add("active");
+status("Choose a family member.");
+};
+async function send(){
+const text=$("message").value.trim();if(!text||!currentUser)return;
+$("send").disabled=true;
+try{
+const path=activeMode==="group"?"familyMessages":"privateChats/"+activeChatId+"/messages";
+await db.ref(path).push({uid:currentUser.uid,email:currentUser.email||"",text,createdAt:firebase.database.ServerValue.TIMESTAMP});
+$("message").value="";status("Message sent.");
+}catch(e){status("Send failed: "+e.message)}
+finally{$("send").disabled=false}
+}
+$("send").onclick=send;
+$("message").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();send()}});
+auth.onAuthStateChanged(async u=>{
+stopAll();currentUser=u;$("adminPanel").classList.add("hidden");$("chat").replaceChildren();
+if(!u){show("auth");status("Please log in.");return}
+try{
+if(!isAdmin()){
+const m=await loadMember(u);
+if(!m||m.status==="pending"){show("pending");return}
+if(m.status!=="approved"){show("rejected");return}
+}
+show("room");$("welcome").textContent="Logged in: "+(u.email||"");
+if(isAdmin()){$("adminPanel").classList.remove("hidden");startAdminPrivateChats()}
+startMembers();activeMode="group";activeChatId=null;
+$("contacts").classList.add("hidden");$("chat").classList.remove("hidden");
+$("chatTitle").textContent="💬 Family Group Chat";startChat();
+status(isAdmin()?"Welcome Admin.":"Welcome to My Family.");
+}catch(e){show("auth");status("Access error: "+e.message)}
+});
 </script>
 </body>
 </html>
