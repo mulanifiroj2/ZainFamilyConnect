@@ -141,11 +141,16 @@ $("login").onclick=async()=>{
 try{status("Logging in...");await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}
 catch(e){status(e.message)}
 };
-$("register").onclick=async()=>{
+$("login").onclick=async()=>{
 try{
-if(!$("email").value.trim()||$("password").value.length<6){status("Enter email and password (minimum 6 characters).");return}
-await auth.createUserWithEmailAndPassword($("email").value.trim(),$("password").value)
-}catch(e){status(e.message)}
+alert("Login checking...");
+await auth.signInWithEmailAndPassword(
+$("email").value.trim(),
+$("password").value
+);
+}catch(e){
+alert("LOGIN ERROR: "+e.message);
+}
 };
 async function loadMember(u){
 const r=db.ref("members/"+u.uid);let s=await r.once("value");
