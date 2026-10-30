@@ -4,53 +4,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#111111">
 <title>Zain's Family Connect</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#111;color:#fff;font-family:Arial,sans-serif;padding:18px}
-.card{max-width:480px;margin:20px auto;border:2px solid #d4af37;border-radius:20px;padding:22px;background:#202020}
-h1{color:#f5c451;text-align:center;font-size:27px}
-h2{color:#f5c451}
+body{margin:0;background:#111;color:white;font-family:Arial,sans-serif;padding:15px}
+.card{max-width:520px;margin:20px auto;border:2px solid #d4af37;border-radius:18px;padding:20px;background:#191919}
+h1,h2{color:#f5c451;text-align:center}
 input,button{width:100%;padding:13px;margin:7px 0;border-radius:9px;font-size:16px}
 input{background:#333;color:white;border:1px solid #777}
 button{background:#f5c451;color:#222;border:0;font-weight:bold;cursor:pointer}
 button:disabled{opacity:.5}
+.hidden{display:none!important}
 #chat{height:300px;overflow:auto;background:#151515;padding:10px;border-radius:10px}
 .msg{padding:9px;margin:8px 0;background:#333;border-radius:9px;overflow-wrap:anywhere}
 .small{font-size:13px;color:#ccc}
-.hidden{display:none}
 #status{color:#f5c451;overflow-wrap:anywhere}
+.member{padding:12px;margin:10px 0;background:#292929;border:1px solid #555;border-radius:10px}
+.member button{width:48%;display:inline-block}
+.approve{background:#39b96b}
+.reject{background:#d9534f;color:white}
 </style>
 </head>
 <body>
 <div class="card">
 <h1>❤️ Zain's Family Connect</h1>
-<p style="text-align:center">Stay connected with your family</p>
+<p style="text-align:center">Stay connected with your Family</p>
 
 <div id="auth">
 <h2>Family Login</h2>
-<input id="email" type="email" placeholder="Email address" autocomplete="email">
-<input id="password" type="password" placeholder="Password (minimum 6 characters)" autocomplete="current-password">
+<input id="email" type="email" placeholder="Email address">
+<input id="password" type="password" placeholder="Password (minimum 6 characters)">
 <button id="login">Login</button>
 <button id="register">Create Family Account</button>
-<p class="small">Use your own email and a strong password. Share accounts only with trusted family members.</p>
+<p class="small">Only trusted family members should register.</p>
+</div>
+
+<div id="pending" class="hidden">
+<h2>Approval Pending</h2>
+<p>Your family account is waiting for Admin approval.</p>
+<p>Please wait for the Admin to approve your account.</p>
+<button id="pendingLogout">Logout</button>
+</div>
+
+<div id="rejected" class="hidden">
+<h2>Account Not Approved</h2>
+<p>Please contact your family Admin.</p>
+<button id="rejectedLogout">Logout</button>
 </div>
 
 <div id="room" class="hidden">
 <p id="welcome"></p>
 <button id="logout">Logout</button>
+
+<div id="adminPanel" class="hidden">
+<h2>Admin Dashboard</h2>
+<p>Family Member Approval</p>
+<div id="membersList">Loading members...</div>
+</div>
+
 <h2>💬 Family Chat</h2>
 <div id="chat"></div>
 <input id="message" maxlength="1000" placeholder="Type your message...">
 <button id="send">Send Message</button>
 </div>
+
 <p id="status" role="status">Connecting...</p>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyDl_6i_Crv0j2S3Q4AvhD039YZ-d-VQgp0",
@@ -62,93 +86,252 @@ const firebaseConfig = {
   appId: "1:684377643320:web:8fc7c19742ab52528b89cd"
 };
 
-const $ = id => document.getElementById(id);
-let auth, db, currentUser, chatListener = null;
+const ADMIN_UID = "XHgduM275reB7g3DN2uss9kzwCm1";
+const ADMIN_EMAIL = "mulanifiroj2@gmail.com";
 
-try {
-  if (firebaseConfig.apiKey.startsWith("PASTE_") ||
-      firebaseConfig.appId.startsWith("PASTE_")) {
-    throw new Error("Firebase API key aur App ID abhi paste karna baaki hai.");
-  }
-  firebase.initializeApp(firebaseConfig);
-  auth = firebase.auth();
-  db = firebase.database();
-  $("status").textContent = "Firebase connected. Please log in.";
-} catch (e) {
-  $("status").textContent = e.message;
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+const $ = id => document.getElementById(id);
+let currentUser = null;
+let chatListener = null;
+let memberListener = null;
+
+function show(id) {
+  ["auth","pending","rejected","room"].forEach(x => $(x).classList.add("hidden"));
+  $(id).classList.remove("hidden");
 }
 
-$("login").onclick = async () => {
-  try {
-    await auth.signInWithEmailAndPassword(
-      $("email").value.trim(), $("password").value
-    );
-  } catch (e) { $("status").textContent = e.message; }
-};
+function status(message) {
+  $("status").textContent = message;
+}
 
-$("register").onclick = async () => {
-  try {
-    await auth.createUserWithEmailAndPassword(
-      $("email").value.trim(), $("password").value
-    );
-  } catch (e) { $("status").textContent = e.message; }
-};
-
-$("logout").onclick = () => auth.signOut();
-
-if (auth) auth.onAuthStateChanged(user => {
-  currentUser = user;
-  $("auth").classList.toggle("hidden", !!user);
-  $("room").classList.toggle("hidden", !user);
+function stopListeners() {
   if (chatListener) {
     db.ref("familyMessages").off("value", chatListener);
     chatListener = null;
   }
-  $("chat").replaceChildren();
+  if (memberListener) {
+    db.ref("members").off("value", memberListener);
+    memberListener = null;
+  }
+}
 
-  if (user) {
-    $("welcome").textContent = "Logged in: " + user.email;
-    const ref = db.ref("familyMessages").limitToLast(100);
-    chatListener = snapshot => {
-      const chat = $("chat");
-      chat.replaceChildren();
-      snapshot.forEach(child => {
-        const m = child.val();
-        const item = document.createElement("div");
-        item.className = "msg";
-        const who = document.createElement("strong");
-        who.textContent = m.email || "Family member";
-        const body = document.createElement("div");
-        body.textContent = m.text || "";
-        item.append(who, body);
-        chat.appendChild(item);
+$("login").onclick = async () => {
+  try {
+    status("Logging in...");
+    await auth.signInWithEmailAndPassword(
+      $("email").value.trim(),
+      $("password").value
+    );
+  } catch(e) {
+    status(e.message);
+  }
+};
+
+$("register").onclick = async () => {
+  try {
+    if (!$("email").value.trim() || $("password").value.length < 6) {
+      status("Enter email and password (minimum 6 characters).");
+      return;
+    }
+    status("Creating account...");
+    await auth.createUserWithEmailAndPassword(
+      $("email").value.trim(),
+      $("password").value
+    );
+  } catch(e) {
+    status(e.message);
+  }
+};
+
+$("logout").onclick = () => auth.signOut();
+$("pendingLogout").onclick = () => auth.signOut();
+$("rejectedLogout").onclick = () => auth.signOut();
+
+async function loadMember(user) {
+  const ref = db.ref("members/" + user.uid);
+
+  let snapshot = await ref.once("value");
+
+  if (!snapshot.exists()) {
+    try {
+      await ref.set({
+        email: user.email || "",
+        status: "pending",
+        createdAt: firebase.database.ServerValue.TIMESTAMP
       });
-      chat.scrollTop = chat.scrollHeight;
-    };
-    ref.on("value", chatListener, err => {
-      $("status").textContent = "Database error: " + err.message;
+    } catch(e) {
+      // If another login created the record first, read it again.
+    }
+    snapshot = await ref.once("value");
+  }
+
+  return snapshot.val();
+}
+
+function startChat() {
+  const chatRef = db.ref("familyMessages").limitToLast(100);
+
+  chatListener = snapshot => {
+    const chat = $("chat");
+    chat.replaceChildren();
+
+    snapshot.forEach(child => {
+      const m = child.val() || {};
+      const item = document.createElement("div");
+      item.className = "msg";
+
+      const who = document.createElement("strong");
+      who.textContent = m.email || "Family member";
+
+      const text = document.createElement("div");
+      text.textContent = m.text || "";
+
+      item.append(who, text);
+      chat.appendChild(item);
     });
-    $("status").textContent = "Logged in. Check database access rules.";
-  } else {
-    $("status").textContent = "Please log in.";
+
+    chat.scrollTop = chat.scrollHeight;
+  };
+
+  chatRef.on("value", chatListener, e => status(e.message));
+}
+
+function startAdminDashboard() {
+  $("adminPanel").classList.remove("hidden");
+
+  memberListener = snapshot => {
+    const list = $("membersList");
+    list.replaceChildren();
+
+    if (!snapshot.exists()) {
+      list.textContent = "No family members registered yet.";
+      return;
+    }
+
+    snapshot.forEach(child => {
+      const uid = child.key;
+      const member = child.val() || {};
+
+      if (uid === ADMIN_UID) return;
+
+      const card = document.createElement("div");
+      card.className = "member";
+
+      const email = document.createElement("p");
+      email.textContent = member.email || uid;
+
+      const state = document.createElement("p");
+      state.textContent = "Status: " + (member.status || "pending");
+
+      card.append(email, state);
+
+      if (member.status !== "approved" && member.status !== "rejected") {
+        const approve = document.createElement("button");
+        approve.className = "approve";
+        approve.textContent = "Approve";
+        approve.onclick = () => changeMember(uid, "approved");
+
+        const reject = document.createElement("button");
+        reject.className = "reject";
+        reject.textContent = "Reject";
+        reject.onclick = () => changeMember(uid, "rejected");
+
+        card.append(approve, reject);
+      }
+
+      list.appendChild(card);
+    });
+  };
+
+  db.ref("members").on("value", memberListener, e => status(e.message));
+}
+
+async function changeMember(uid, newStatus) {
+  try {
+    await db.ref("members/" + uid).update({
+      status: newStatus,
+      reviewedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    status("Member status updated: " + newStatus);
+  } catch(e) {
+    status("Could not update member: " + e.message);
+  }
+}
+
+auth.onAuthStateChanged(async user => {
+  stopListeners();
+  $("adminPanel").classList.add("hidden");
+  $("chat").replaceChildren();
+  currentUser = user;
+
+  if (!user) {
+    show("auth");
+    status("Please log in.");
+    return;
+  }
+
+  try {
+    $("welcome").textContent = "Logged in: " + (user.email || "");
+
+    if (user.uid === ADMIN_UID) {
+      show("room");
+      status("Welcome Admin.");
+      startAdminDashboard();
+      startChat();
+      return;
+    }
+
+    const member = await loadMember(user);
+
+    if (!member || member.status === "pending") {
+      show("pending");
+      status("Waiting for Admin approval.");
+      return;
+    }
+
+    if (member.status === "rejected") {
+      show("rejected");
+      status("Your account was not approved.");
+      return;
+    }
+
+    if (member.status === "approved") {
+      show("room");
+      status("Welcome to Family Connect.");
+      startChat();
+      return;
+    }
+
+    show("pending");
+    status("Waiting for Admin approval.");
+
+  } catch(e) {
+    show("auth");
+    status("Access error: " + e.message);
   }
 });
 
 $("send").onclick = async () => {
   const text = $("message").value.trim();
   if (!currentUser || !text) return;
+
   $("send").disabled = true;
+
   try {
     await db.ref("familyMessages").push({
       uid: currentUser.uid,
-      email: currentUser.email,
+      email: currentUser.email || "",
       text: text,
       createdAt: firebase.database.ServerValue.TIMESTAMP
     });
+
     $("message").value = "";
-    $("status").textContent = "Message sent.";
-  } catch (e) {
-    $("status").textContent = "Could not send: " + e.message;
+    status("Message sent.");
+  } catch(e) {
+    status("Could not send: " + e.message);
   } finally {
     $("send").disabled = false;
   }
