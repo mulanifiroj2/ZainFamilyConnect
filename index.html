@@ -259,18 +259,39 @@ db.ref("members").on("value",memberListener,e=>status(e.message));
 }
 function chatId(a,b){return[a,b].sort().join("_")}
 async function openPrivate(uid,email){
-try{
-activeMode="private";activeOther={uid,email};activeChatId=chatId(currentUser.uid,uid);
-const meta=db.ref("privateChats/"+activeChatId);const snap=await meta.once("value");
-if(!snap.exists()){
-const participants={};participants[currentUser.uid]=true;participants[uid]=true;
-await meta.set({participants:participants,createdAt:firebase.database.ServerValue.TIMESTAMP});
-}
-$("contacts").classList.add("hidden");$("chat").classList.remove("hidden");
-$("chatTitle").textContent="🔒 "+email;startChat();
-$("groupTab").classList.remove("active");$("peopleTab").classList.add("active");
-status("Personal chat — Admin can read this chat.");
-}catch(e){status("Could not open personal chat: "+e.message)}
+  try{
+    activeMode="private";
+    activeOther={uid,email};
+    activeChatId=chatId(currentUser.uid,uid);
+
+    const meta=db.ref("privateChats/"+activeChatId);
+    const snap=await meta.once("value");
+
+    const participants={};
+    participants[currentUser.uid]=true;
+    participants[uid]=true;
+
+    if(!snap.exists()){
+      await meta.set({
+        participants:participants,
+        createdAt:firebase.database.ServerValue.TIMESTAMP
+      });
+    }else if(currentUser.uid==="XHgduM275reB7g3DN2uss9kzwCm1" && !snap.child("participants").exists()){
+      await meta.child("participants").set(participants);
+    }
+
+    $("contacts").classList.add("hidden");
+    $("chat").classList.remove("hidden");
+    $("chatTitle").textContent="🔒 "+email;
+    startChat();
+
+    $("groupTab").classList.remove("active");
+    $("peopleTab").classList.add("active");
+    status("Personal chat opened.");
+
+  }catch(e){
+    status("Could not open personal chat: "+e.message);
+  }
 }
 $("groupTab").onclick=()=>{
 activeMode="group";activeChatId=null;activeOther=null;
