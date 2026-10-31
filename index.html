@@ -6,7 +6,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#101a17">
 <meta name="description" content="Private family group and personal chat">
-<link rel="manifest" href="manifest.webmanifest">
 <title>My Family</title>
 <style>
 :root{--gold:#e8c45b;--bg:#101a17;--panel:#182520;--line:#34463d}
@@ -59,6 +58,7 @@ h1{font-size:30px}
 </style>
 </head>
 <body>
+
 <section id="auth">
 <h1>❤️ My Family</h1>
 <p style="text-align:center">Stay connected with your family</p>
@@ -71,29 +71,38 @@ h1{font-size:30px}
 <button class="secondary" id="register">Create Family Account</button>
 <p class="small">Only trusted family members should register. New accounts need Admin approval.</p>
 </section>
+
 <section id="pending" class="hidden">
 <h1>❤️ My Family</h1><h2>Approval Pending</h2>
 <p>Your account is waiting for Admin approval.</p>
 <button class="primary" id="pendingLogout">Logout</button>
 </section>
+
 <section id="rejected" class="hidden">
 <h1>❤️ My Family</h1><h2>Account Not Approved</h2>
 <p>Please contact your family Admin.</p>
 <button class="primary" id="rejectedLogout">Logout</button>
 </section>
+
 <main id="room" class="hidden">
-<header class="topbar"><div class="brand">❤️ My Family</div><button id="logout">Logout</button></header>
+<header class="topbar">
+<div class="brand">❤️ My Family</div>
+<button id="logout">Logout</button>
+</header>
+
 <p id="welcome"></p>
+
 <section id="profileBox" style="padding:8px 12px;background:#14201b;border-bottom:1px solid var(--line)">
-  <details>
-    <summary style="color:var(--gold);cursor:pointer;font-weight:bold">My Profile — अपना नाम सेट / बदलें</summary>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-      <input id="profileFirst" type="text" placeholder="First name" autocomplete="given-name" style="flex:1;min-width:120px">
-      <input id="profileLast" type="text" placeholder="Last name" autocomplete="family-name" style="flex:1;min-width:120px">
-      <button id="saveProfile" class="primary" style="width:auto;margin-top:0">Save Name</button>
-    </div>
-  </details>
+<details>
+<summary style="color:var(--gold);cursor:pointer;font-weight:bold">My Profile — अपना नाम सेट / बदलें</summary>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+<input id="profileFirst" type="text" placeholder="First name" autocomplete="given-name" style="flex:1;min-width:120px">
+<input id="profileLast" type="text" placeholder="Last name" autocomplete="family-name" style="flex:1;min-width:120px">
+<button id="saveProfile" class="primary" style="width:auto;margin-top:0">Save Name</button>
+</div>
+</details>
 </section>
+
 <section id="adminPanel" class="hidden">
 <h2>Admin Dashboard</h2>
 <button class="danger" id="deleteAll">Delete All Group Messages</button>
@@ -101,17 +110,21 @@ h1{font-size:30px}
 <h3 style="color:#e8c45b">All Personal Chats (Admin)</h3>
 <div id="adminChats">Loading...</div>
 </section>
+
 <nav class="nav">
 <button id="groupTab" class="active">Family Group</button>
 <button id="peopleTab">Personal Chat</button>
 </nav>
+
 <section id="contacts" class="hidden">
 <h2>Family Members</h2>
 <p class="small">किसी सदस्य को चुनकर निजी चैट शुरू करें।</p>
 <div id="contactsList">Loading members...</div>
 </section>
+
 <h2 class="chat-title" id="chatTitle">💬 Family Group Chat</h2>
 <div id="chat"></div>
+
 <div class="composer">
 <input id="message" maxlength="1000" placeholder="Message लिखें..." autocomplete="off">
 <button id="send">Send</button>
@@ -122,6 +135,7 @@ h1{font-size:30px}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyDl_6i_Crv0j2S3Q4AvhD039YZ-d-VQgp0",
@@ -132,177 +146,422 @@ const firebaseConfig = {
   messagingSenderId: "684377643320",
   appId: "1:684377643320:web:8fc7c19742ab52528b89cd"
 };
+
 const ADMIN_UID="XHgduM275reB7g3DN2uss9kzwCm1";
+
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.database();
 const $=id=>document.getElementById(id);
-let currentUser=null,chatListener=null,memberListener=null,adminPrivateListener=null,activeMode="group",activeChatId=null,activeOther=null;
+
+let currentUser=null;
+let chatListener=null;
+let memberListener=null;
+let adminPrivateListener=null;
+let activeMode="group";
+let activeChatId=null;
+let activeOther=null;
 let memberProfiles={};
+
 const isAdmin=()=>!!currentUser&&currentUser.uid===ADMIN_UID;
+
 function fullName(profile,emailOrUid){
   const p=profile||{};
   const name=[p.firstName,p.lastName].filter(Boolean).join(" ").trim();
   return name||emailOrUid||"Family member";
 }
-function myProfile(){
-  return memberProfiles[currentUser?.uid]||{};
+
+function status(s){
+  $("status").textContent=s;
 }
-function status(s){$("status").textContent=s}
-function show(id){["auth","pending","rejected","room"].forEach(x=>$(x).classList.add("hidden"));$(id).classList.remove("hidden")}
+
+function show(id){
+  ["auth","pending","rejected","room"].forEach(x=>$(x).classList.add("hidden"));
+  $(id).classList.remove("hidden");
+}
+
 function stopChat(){
-if(chatListener){
-const p=activeMode==="group"?"familyMessages":"privateChats/"+activeChatId+"/messages";
-db.ref(p).off("value",chatListener);chatListener=null;
-}}
-function stopAll(){
-stopChat();
-if(memberListener){db.ref("members").off("value",memberListener);memberListener=null}
-if(adminPrivateListener){db.ref("privateChats").off("value",adminPrivateListener);adminPrivateListener=null}
+  if(chatListener){
+    const p=activeMode==="group"?"familyMessages":"privateChats/"+activeChatId+"/messages";
+    db.ref(p).off("value",chatListener);
+    chatListener=null;
+  }
 }
-["logout","pendingLogout","rejectedLogout"].forEach(id=>$(id).onclick=()=>auth.signOut());
+
+function stopAll(){
+  stopChat();
+  if(memberListener){
+    db.ref("members").off("value",memberListener);
+    memberListener=null;
+  }
+  if(adminPrivateListener){
+    db.ref("privateChats").off("value",adminPrivateListener);
+    adminPrivateListener=null;
+  }
+}
+
+["logout","pendingLogout","rejectedLogout"].forEach(id=>{
+  $(id).onclick=()=>auth.signOut();
+});
+
 $("login").onclick=async()=>{
   try{
     status("Logging in...");
-    await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value);
-  }catch(e){status("Login error: "+e.message);}
+    await auth.signInWithEmailAndPassword(
+      $("email").value.trim(),
+      $("password").value
+    );
+  }catch(e){
+    status("Login error: "+e.message);
+  }
 };
+
 $("register").onclick=async()=>{
   const firstName=$("firstName").value.trim();
   const lastName=$("lastName").value.trim();
   const email=$("email").value.trim();
   const password=$("password").value;
-  if(!firstName||!lastName){status("Please enter First Name and Last Name.");return;}
-  if(!email||password.length<6){status("Enter email and password (minimum 6 characters).");return;}
+
+  if(!firstName||!lastName){
+    status("Please enter First Name and Last Name.");
+    return;
+  }
+  if(!email||password.length<6){
+    status("Enter email and password (minimum 6 characters).");
+    return;
+  }
+
   try{
     status("Creating account...");
     const cred=await auth.createUserWithEmailAndPassword(email,password);
     await db.ref("members/"+cred.user.uid).set({
-      email:email,firstName:firstName,lastName:lastName,status:"pending",
+      email:email,
+      firstName:firstName,
+      lastName:lastName,
+      status:"pending",
       createdAt:firebase.database.ServerValue.TIMESTAMP
     });
     status("Account created. Waiting for Admin approval.");
-  }catch(e){status("Registration error: "+e.message);}
+  }catch(e){
+    status("Registration error: "+e.message);
+  }
 };
+
 $("saveProfile").onclick=async()=>{
   if(!currentUser)return;
+
   const firstName=$("profileFirst").value.trim();
   const lastName=$("profileLast").value.trim();
-  if(!firstName||!lastName){status("Please enter both names.");return;}
+
+  if(!firstName||!lastName){
+    status("Please enter both names.");
+    return;
+  }
+
   try{
     await db.ref("members/"+currentUser.uid).update({
       email:currentUser.email||"",
-      firstName:firstName,lastName:lastName,
+      firstName:firstName,
+      lastName:lastName,
       profileUpdatedAt:firebase.database.ServerValue.TIMESTAMP
     });
+
+    memberProfiles[currentUser.uid]={
+      ...(memberProfiles[currentUser.uid]||{}),
+      email:currentUser.email||"",
+      firstName,
+      lastName
+    };
+
+    $("welcome").textContent="Logged in: "+fullName(
+      memberProfiles[currentUser.uid],
+      currentUser.email||""
+    );
+
     status("Name saved successfully.");
-  }catch(e){status("Name save failed: "+e.message);}
+
+    if(chatListener)startChat();
+    if(memberListener)startMembers();
+
+  }catch(e){
+    status("Name save failed: "+e.message);
+  }
 };
+
 async function loadMember(u){
-const r=db.ref("members/"+u.uid);let s=await r.once("value");
-if(!s.exists()){
-try{await r.set({email:u.email||"",status:"pending",createdAt:firebase.database.ServerValue.TIMESTAMP})}catch(e){}
-s=await r.once("value");
+  const r=db.ref("members/"+u.uid);
+  let s=await r.once("value");
+
+  if(!s.exists()){
+    try{
+      await r.set({
+        email:u.email||"",
+        status:"pending",
+        createdAt:firebase.database.ServerValue.TIMESTAMP
+      });
+    }catch(e){}
+    s=await r.once("value");
+  }
+  return s.val();
 }
-return s.val();
-}
+
 function fmt(t){
-return typeof t==="number"?new Date(t).toLocaleString("hi-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}):"पुराना मैसेज";
+  return typeof t==="number"
+    ?new Date(t).toLocaleString("hi-IN",{
+      day:"2-digit",
+      month:"short",
+      year:"numeric",
+      hour:"2-digit",
+      minute:"2-digit"
+    })
+    :"पुराना मैसेज";
 }
+
 function renderMessages(snapshot){
-const box=$("chat");box.replaceChildren();
-snapshot.forEach(ch=>{
-const m=ch.val()||{},id=ch.key,el=document.createElement("div");
-el.className="msg"+(m.uid===currentUser.uid?" mine":"");
-const head=document.createElement("div");head.className="msg-head";
-const who=document.createElement("span");who.className="msg-who";who.textContent=fullName(memberProfiles[m.uid],m.email||"Family member");
-const time=document.createElement("time");time.className="msg-time";time.textContent=fmt(m.createdAt);
-head.append(who,time);
-const body=document.createElement("div");body.className="msg-text";body.textContent=m.text||"";
-el.append(head,body);
-if(isAdmin()||m.uid===currentUser.uid){
-const a=document.createElement("div");a.className="msg-actions";
-const b=document.createElement("button");b.className="delete-one";b.textContent="Delete";b.onclick=()=>deleteOne(id);
-a.append(b);el.append(a);
+  const box=$("chat");
+  box.replaceChildren();
+
+  snapshot.forEach(ch=>{
+    const m=ch.val()||{};
+    const id=ch.key;
+    const el=document.createElement("div");
+
+    el.className="msg"+(m.uid===currentUser.uid?" mine":"");
+
+    const head=document.createElement("div");
+    head.className="msg-head";
+
+    const who=document.createElement("span");
+    who.className="msg-who";
+    who.textContent=fullName(
+      memberProfiles[m.uid],
+      m.email||"Family member"
+    );
+
+    const time=document.createElement("time");
+    time.className="msg-time";
+    time.textContent=fmt(m.createdAt);
+
+    head.append(who,time);
+
+    const body=document.createElement("div");
+    body.className="msg-text";
+    body.textContent=m.text||"";
+
+    el.append(head,body);
+
+    if(isAdmin()||m.uid===currentUser.uid){
+      const a=document.createElement("div");
+      a.className="msg-actions";
+
+      const b=document.createElement("button");
+      b.className="delete-one";
+      b.textContent="Delete";
+      b.onclick=()=>deleteOne(id);
+
+      a.append(b);
+      el.append(a);
+    }
+
+    box.append(el);
+  });
+
+  box.scrollTop=box.scrollHeight;
 }
-box.append(el);
-});
-box.scrollTop=box.scrollHeight;
-}
+
 function startChat(){
-stopChat();
-const path=activeMode==="group"?"familyMessages":"privateChats/"+activeChatId+"/messages";
-const ref=db.ref(path).limitToLast(200);
-chatListener=renderMessages;
-ref.on("value",chatListener,e=>status(e.message));
+  stopChat();
+
+  const path=activeMode==="group"
+    ?"familyMessages"
+    :"privateChats/"+activeChatId+"/messages";
+
+  const ref=db.ref(path).limitToLast(200);
+
+  chatListener=renderMessages;
+  ref.on("value",chatListener,e=>status(e.message));
 }
+
 async function deleteOne(id){
-if(!confirm("यह मैसेज डिलीट करें?"))return;
-try{
-const p=activeMode==="group"?"familyMessages/"+id:"privateChats/"+activeChatId+"/messages/"+id;
-await db.ref(p).remove();status("Message deleted.");
-}catch(e){status("Delete failed: "+e.message)}
+  if(!confirm("यह मैसेज डिलीट करें?"))return;
+
+  try{
+    const p=activeMode==="group"
+      ?"familyMessages/"+id
+      :"privateChats/"+activeChatId+"/messages/"+id;
+
+    await db.ref(p).remove();
+    status("Message deleted.");
+  }catch(e){
+    status("Delete failed: "+e.message);
+  }
 }
+
 $("deleteAll").onclick=async()=>{
-if(!isAdmin()||!confirm("सभी Group Messages डिलीट करें?"))return;
-try{await db.ref("familyMessages").remove();status("All group messages deleted.")}
-catch(e){status(e.message)}
+  if(!isAdmin()||!confirm("सभी Group Messages डिलीट करें?"))return;
+
+  try{
+    await db.ref("familyMessages").remove();
+    status("All group messages deleted.");
+  }catch(e){
+    status(e.message);
+  }
 };
+
 async function changeMember(uid,s){
-try{await db.ref("members/"+uid).update({status:s,reviewedAt:firebase.database.ServerValue.TIMESTAMP});status("Member status updated.")}
-catch(e){status(e.message)}
+  try{
+    await db.ref("members/"+uid).update({
+      status:s,
+      reviewedAt:firebase.database.ServerValue.TIMESTAMP
+    });
+    status("Member status updated.");
+  }catch(e){
+    status(e.message);
+  }
 }
+
 function startAdminPrivateChats(){
-if(!isAdmin())return;
-adminPrivateListener=snap=>{
-const box=$("adminChats");box.replaceChildren();
-if(!snap.exists()){box.textContent="No personal chats yet.";return}
-snap.forEach(c=>{
-const id=c.key,v=c.val()||{},parts=v.participants||{},uids=Object.keys(parts);
-const row=document.createElement("div");row.className="member";
-const label=document.createElement("p");label.textContent="Private chat: "+uids.map(id=>fullName(memberProfiles[id],id)).join(" ↔ ");
-const b=document.createElement("button");b.textContent="Read Chat";
-b.onclick=()=>{
-activeMode="private";activeChatId=id;activeOther=null;
-$("contacts").classList.add("hidden");$("chat").classList.remove("hidden");
-$("chatTitle").textContent="Admin View — "+uids.map(id=>fullName(memberProfiles[id],id)).join(" ↔ ");startChat();
-};
-row.append(label,b);box.append(row);
-});
-};
-db.ref("privateChats").on("value",adminPrivateListener,e=>status("Admin chat list: "+e.message));
+  if(!isAdmin())return;
+
+  adminPrivateListener=snap=>{
+    const box=$("adminChats");
+    box.replaceChildren();
+
+    if(!snap.exists()){
+      box.textContent="No personal chats yet.";
+      return;
+    }
+
+    snap.forEach(c=>{
+      const id=c.key;
+      const v=c.val()||{};
+      const parts=v.participants||{};
+      const uids=Object.keys(parts);
+
+      const row=document.createElement("div");
+      row.className="member";
+
+      const label=document.createElement("p");
+      label.textContent="Private chat: "+
+        uids.map(id=>fullName(memberProfiles[id],id)).join(" ↔ ");
+
+      const b=document.createElement("button");
+      b.textContent="Read Chat";
+
+      b.onclick=()=>{
+        activeMode="private";
+        activeChatId=id;
+        activeOther=null;
+
+        $("contacts").classList.add("hidden");
+        $("chat").classList.remove("hidden");
+
+        $("chatTitle").textContent="Admin View — "+
+          uids.map(id=>fullName(memberProfiles[id],id)).join(" ↔ ");
+
+        startChat();
+      };
+
+      row.append(label,b);
+      box.append(row);
+    });
+  };
+
+  db.ref("privateChats").on(
+    "value",
+    adminPrivateListener,
+    e=>status("Admin chat list: "+e.message)
+  );
 }
+
 function startMembers(){
-if(memberListener)db.ref("members").off("value",memberListener);
-memberListener=snap=>{
-const contacts=$("contactsList"),admin=$("membersList"),allAdmin=$("adminChats");
-contacts.replaceChildren();admin.replaceChildren();allAdmin.replaceChildren();
-snap.forEach(c=>{
-const uid=c.key,m=c.val()||{};
-if(uid===currentUser.uid)return;
-const state=m.status||"pending";
-if(state==="approved"){
-const row=document.createElement("div");row.className="contact";
-const label=document.createElement("span");label.textContent=fullName(m,m.email||uid);
-const b=document.createElement("button");b.textContent="Chat";b.onclick=()=>openPrivate(uid,fullName(m,m.email||"Family member"));
-row.append(label,b);contacts.append(row);
+  if(memberListener)db.ref("members").off("value",memberListener);
+
+  memberListener=snap=>{
+    memberProfiles={};
+
+    snap.forEach(c=>{
+      memberProfiles[c.key]=c.val()||{};
+    });
+
+    const contacts=$("contactsList");
+    const admin=$("membersList");
+
+    contacts.replaceChildren();
+    admin.replaceChildren();
+
+    snap.forEach(c=>{
+      const uid=c.key;
+      const m=c.val()||{};
+
+      if(uid===currentUser.uid)return;
+
+      const state=m.status||"pending";
+
+      if(state==="approved"){
+        const row=document.createElement("div");
+        row.className="contact";
+
+        const label=document.createElement("span");
+        label.textContent=fullName(m,m.email||uid);
+
+        const b=document.createElement("button");
+        b.textContent="Chat";
+        b.onclick=()=>openPrivate(
+          uid,
+          fullName(m,m.email||"Family member")
+        );
+
+        row.append(label,b);
+        contacts.append(row);
+      }
+
+      if(isAdmin()){
+        const row=document.createElement("div");
+        row.className="member";
+
+        const p=document.createElement("p");
+        p.textContent=fullName(m,m.email||uid)+
+          " ("+(m.email||uid)+") — "+state;
+
+        row.append(p);
+
+        if(state!=="approved"){
+          const b=document.createElement("button");
+          b.className="approve";
+          b.textContent="Approve";
+          b.onclick=()=>changeMember(uid,"approved");
+          row.append(b);
+        }else{
+          const b=document.createElement("button");
+          b.className="reject";
+          b.textContent="Revoke";
+          b.onclick=()=>changeMember(uid,"rejected");
+          row.append(b);
+        }
+
+        admin.append(row);
+      }
+    });
+
+    if(!contacts.children.length){
+      contacts.textContent="No approved members yet.";
+    }
+    if(!admin.children.length){
+      admin.textContent="No members.";
+    }
+  };
+
+  db.ref("members").on(
+    "value",
+    memberListener,
+    e=>status(e.message)
+  );
 }
-if(isAdmin()){
-const row=document.createElement("div");row.className="member";
-const p=document.createElement("p");p.textContent=fullName(m,m.email||uid)+" ("+(m.email||uid)+") — "+state;row.append(p);
-if(state!=="approved"){
-const b=document.createElement("button");b.className="approve";b.textContent="Approve";b.onclick=()=>changeMember(uid,"approved");row.append(b);
-}else{
-const b=document.createElement("button");b.className="reject";b.textContent="Revoke";b.onclick=()=>changeMember(uid,"rejected");row.append(b);
+
+function chatId(a,b){
+  return[a,b].sort().join("_");
 }
-admin.append(row);
-}
-});
-if(!contacts.children.length)contacts.textContent="No approved members yet.";
-if(!admin.children.length)admin.textContent="No members.";
-};
-db.ref("members").on("value",memberListener,e=>status(e.message));
-}
-function chatId(a,b){return[a,b].sort().join("_")}
+
 async function openPrivate(uid,email){
   try{
     activeMode="private";
@@ -321,63 +580,171 @@ async function openPrivate(uid,email){
         participants:participants,
         createdAt:firebase.database.ServerValue.TIMESTAMP
       });
-    }else if(currentUser.uid==="XHgduM275reB7g3DN2uss9kzwCm1" && !snap.child("participants").exists()){
+    }else if(
+      currentUser.uid===ADMIN_UID &&
+      !snap.child("participants").exists()
+    ){
       await meta.child("participants").set(participants);
     }
 
     $("contacts").classList.add("hidden");
     $("chat").classList.remove("hidden");
     $("chatTitle").textContent="🔒 "+email;
+
     startChat();
 
     $("groupTab").classList.remove("active");
     $("peopleTab").classList.add("active");
+
     status("Personal chat opened.");
 
   }catch(e){
     status("Could not open personal chat: "+e.message);
   }
 }
+
 $("groupTab").onclick=()=>{
-activeMode="group";activeChatId=null;activeOther=null;
-$("contacts").classList.add("hidden");$("chat").classList.remove("hidden");
-$("chatTitle").textContent="💬 Family Group Chat";
-$("groupTab").classList.add("active");$("peopleTab").classList.remove("active");startChat();
+  activeMode="group";
+  activeChatId=null;
+  activeOther=null;
+
+  $("contacts").classList.add("hidden");
+  $("chat").classList.remove("hidden");
+
+  $("chatTitle").textContent="💬 Family Group Chat";
+
+  $("groupTab").classList.add("active");
+  $("peopleTab").classList.remove("active");
+
+  startChat();
 };
+
 $("peopleTab").onclick=()=>{
-stopChat();$("chat").classList.add("hidden");$("contacts").classList.remove("hidden");
-$("chatTitle").textContent="Personal Chat";
-$("groupTab").classList.remove("active");$("peopleTab").classList.add("active");
-status("Choose a family member.");
+  stopChat();
+
+  $("chat").classList.add("hidden");
+  $("contacts").classList.remove("hidden");
+
+  $("chatTitle").textContent="Personal Chat";
+
+  $("groupTab").classList.remove("active");
+  $("peopleTab").classList.add("active");
+
+  status("Choose a family member.");
 };
+
 async function send(){
-const text=$("message").value.trim();if(!text||!currentUser)return;
-$("send").disabled=true;
-try{
-const path=activeMode==="group"?"familyMessages":"privateChats/"+activeChatId+"/messages";
-await db.ref(path).push({uid:currentUser.uid,email:currentUser.email||"",text,createdAt:firebase.database.ServerValue.TIMESTAMP});
-$("message").value="";status("Message sent.");
-}catch(e){status("Send failed: "+e.message)}
-finally{$("send").disabled=false}
+  const text=$("message").value.trim();
+
+  if(!text||!currentUser)return;
+
+  if(activeMode==="private"&&!activeChatId){
+    status("पहले Family Member चुनें।");
+    return;
+  }
+
+  $("send").disabled=true;
+
+  try{
+    const path=activeMode==="group"
+      ?"familyMessages"
+      :"privateChats/"+activeChatId+"/messages";
+
+    await db.ref(path).push({
+      uid:currentUser.uid,
+      email:currentUser.email||"",
+      text,
+      createdAt:firebase.database.ServerValue.TIMESTAMP
+    });
+
+    $("message").value="";
+    status("Message sent.");
+
+  }catch(e){
+    status("Send failed: "+e.message);
+  }finally{
+    $("send").disabled=false;
+  }
 }
+
 $("send").onclick=send;
-$("message").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();send()}});
+
+$("message").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    e.preventDefault();
+    send();
+  }
+});
+
 auth.onAuthStateChanged(async u=>{
-stopAll();currentUser=u;$("adminPanel").classList.add("hidden");$("chat").replaceChildren();
-if(!u){show("auth");status("Please log in.");return}
-try{
-if(!isAdmin()){
-const m=await loadMember(u);
-if(!m||m.status==="pending"){show("pending");return}
-if(m.status!=="approved"){show("rejected");return}
-}
-show("room");$("welcome").textContent="Logged in: "+fullName(memberProfiles[u.uid],u.email||"");
-if(isAdmin()){$("adminPanel").classList.remove("hidden");startAdminPrivateChats()}
-startMembers();activeMode="group";activeChatId=null;
-$("contacts").classList.add("hidden");$("chat").classList.remove("hidden");
-$("chatTitle").textContent="💬 Family Group Chat";startChat();
-status(isAdmin()?"Welcome Admin.":"Welcome to My Family.");
-}catch(e){show("auth");status("Access error: "+e.message)}
+  stopAll();
+  currentUser=u;
+
+  $("adminPanel").classList.add("hidden");
+  $("chat").replaceChildren();
+
+  if(!u){
+    show("auth");
+    status("Please log in.");
+    return;
+  }
+
+  try{
+    let ownMember={};
+
+    if(!isAdmin()){
+      const m=await loadMember(u);
+
+      if(!m||m.status==="pending"){
+        show("pending");
+        return;
+      }
+
+      if(m.status!=="approved"){
+        show("rejected");
+        return;
+      }
+
+      ownMember=m;
+
+    }else{
+      const ownSnap=await db.ref("members/"+u.uid).once("value");
+      ownMember=ownSnap.val()||{};
+    }
+
+    memberProfiles[u.uid]=ownMember;
+
+    $("profileFirst").value=ownMember.firstName||"";
+    $("profileLast").value=ownMember.lastName||"";
+
+    show("room");
+
+    $("welcome").textContent="Logged in: "+
+      fullName(memberProfiles[u.uid],u.email||"");
+
+    if(isAdmin()){
+      $("adminPanel").classList.remove("hidden");
+      startAdminPrivateChats();
+    }
+
+    startMembers();
+
+    activeMode="group";
+    activeChatId=null;
+
+    $("contacts").classList.add("hidden");
+    $("chat").classList.remove("hidden");
+
+    $("chatTitle").textContent="💬 Family Group Chat";
+
+    startChat();
+
+    status(isAdmin()?"Welcome Admin.":"Welcome to My Family.");
+
+  }catch(e){
+    show("auth");
+    status("Access error: "+e.message);
+  }
 });
 </script>
 </body>
