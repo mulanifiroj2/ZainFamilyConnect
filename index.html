@@ -233,7 +233,7 @@ const contacts=$("contactsList"),admin=$("membersList"),allAdmin=$("adminChats")
 contacts.replaceChildren();admin.replaceChildren();allAdmin.replaceChildren();
 snap.forEach(c=>{
 const uid=c.key,m=c.val()||{};
-if(uid===ADMIN_UID)return;
+if(uid===currentUser.uid)return;
 const state=m.status||"pending";
 if(state==="approved"){
 const row=document.createElement("div");row.className="contact";
