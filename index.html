@@ -125,11 +125,28 @@ h1{font-size:30px}
 <h2 class="chat-title" id="chatTitle">💬 Family Group Chat</h2>
 <div id="chat"></div>
 
-<div class="composer">
-<input id="message" maxlength="1000" placeholder="Message लिखें..." autocomplete="off">
-<button id="send">Send</button>
-  <button type="button" onclick="startFamilyCall('audio')">📞 Voice Call</button>
-<button type="button" onclick="startFamilyCall('video')">📹 Video Call</button>
+<div class="composer" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+  <button type="button" id="attachBtn" title="Attachment">📎</button>
+
+  <input
+    id="message"
+    maxlength="1000"
+    placeholder="Message लिखें..."
+    autocomplete="off"
+    style="flex:1;min-width:120px;"
+  >
+
+  <button id="send" title="Send">➤</button>
+</div>
+
+<div class="call-actions" style="display:flex;gap:10px;margin-top:10px;">
+  <button type="button" onclick="startFamilyCall('audio')" style="flex:1;">
+    📞 Voice Call
+  </button>
+
+  <button type="button" onclick="startFamilyCall('video')" style="flex:1;">
+    📹 Video Call
+  </button>
 </div>
 <div id="status">Connecting...</div>
 </main>
