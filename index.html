@@ -563,7 +563,321 @@ function startMembers(){
 function chatId(a,b){
   return[a,b].sort().join("_");
 }
+// ===== MY FAMILY CALLING START =====
+let localStream = null;
+let peerConnection = null;
+let currentCallId = null;
+let incomingCallListener = null;
+let callCandidatesListener = null;
+// ===== MY FAMILY CALLING END =====
+  // ===== CALL SETTINGS =====
+const callServers = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" }
+  ]
+};
 
+function showCallStatus(message) {
+  status("📞 " + message);
+}
+
+function createCallWindow() {
+  let box = document.getElementById("callWindow");
+
+  if (box) return box;
+
+  box = document.createElement("div");
+  box.id = "callWindow";
+
+  box.style.cssText =
+    "position:fixed;inset:0;z-index:9999;background:#101a17;" +
+    "display:flex;flex-direction:column;align-items:center;" +
+    "justify-content:center;padding:20px;gap:15px;color:white;";
+
+  box.innerHTML = `
+    <h2 id="callHeading">My Family Call</h2>
+    <video id="remoteVideo" autoplay playsinline
+      style="width:100%;max-height:45vh;background:#26342e;border-radius:15px"></video>
+    <video id="localVideo" autoplay muted playsinline
+      style="width:120px;max-height:120px;background:#26342e;border-radius:12px"></video>
+    <p id="callMessage">Connecting...</p>
+    <button id="endCallButton"
+      style="background:#c62828;color:white">🔴 End Call</button>
+  `;
+
+  document.body.appendChild(box);
+  box.querySelector("#endCallButton").onclick = endFamilyCall;
+
+  return box;
+}
+  // ===== PERSONAL CALL: START CALL =====
+
+async function startFamilyCall(type) {
+  if (!currentUser) {
+    alert("पहले Login करो");
+    return;
+  }
+
+  if (activeMode !== "private" || !activeOther) {
+    alert("पहले Personal Chat में परिवार के सदस्य को चुनो");
+    return;
+  }
+
+  try {
+    const roomRef = db.ref("callRooms").push();
+    currentCallId = roomRef.key;
+
+    createCallWindow();
+
+    $("callHeading").textContent =
+      type === "video" ? "📹 Video Calling" : "📞 Voice Calling";
+
+    showCallStatus("कॉल शुरू हो रही है...");
+
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: type === "video"
+    });
+
+    $("localVideo").srcObject = localStream;
+    $("localVideo").style.display =
+      type === "video" ? "block" : "none";
+
+    peerConnection = new RTCPeerConnection(callServers);
+
+    localStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, localStream);
+    });
+
+    peerConnection.ontrack = event => {
+      $("remoteVideo").srcObject = event.streams[0];
+    };
+
+    peerConnection.onicecandidate = async event => {
+      if (event.candidate && currentCallId) {
+        await db.ref(
+          "callRooms/" + currentCallId + "/callerCandidates"
+        ).push(event.candidate.toJSON());
+      }
+    };
+
+    const participants = {};
+    participants[currentUser.uid] = true;
+    participants[activeOther.uid] = true;
+
+    await roomRef.set({
+      caller: currentUser.uid,
+      receiver: activeOther.uid,
+      type: type,
+      status: "ringing",
+      participants: participants,
+      createdAt: firebase.database.ServerValue.TIMESTAMP
+    });
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    await roomRef.child("offer").set({
+      type: offer.type,
+      sdp: offer.sdp
+    });
+    // Send call invitation to receiver
+await sendCallInvite(
+  activeOther.uid,
+  currentCallId,
+  type
+);
+
+    callCandidatesListener = roomRef.child("calleeCandidates").on(
+      "child_added",
+      snapshot => {
+        const candidate = snapshot.val();
+        if (candidate && peerConnection) {
+          peerConnection.addIceCandidate(
+            new RTCIceCandidate(candidate)
+          ).catch(console.error);
+        }
+      }
+    );
+
+    roomRef.child("answer").on("value", async snapshot => {
+      const answer = snapshot.val();
+
+      if (
+        answer &&
+        peerConnection &&
+        !peerConnection.currentRemoteDescription
+      ) {
+        await peerConnection.setRemoteDescription(
+          new RTCSessionDescription(answer)
+        );
+        showCallStatus("कॉल कनेक्ट हो रही है...");
+      }
+    });
+
+    showCallStatus("कॉल लग रही है...");
+
+  } catch (error) {
+    alert("Call Error: " + error.message);
+    await endFamilyCall();
+  }
+}
+
+// ===== END PERSONAL CALL =====
+
+async function endFamilyCall() {
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+
+  if (currentCallId) {
+    try {
+      await db.ref("callRooms/" + currentCallId).update({
+        status: "ended",
+        endedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  const box = document.getElementById("callWindow");
+  if (box) box.remove();
+
+  currentCallId = null;
+  callCandidatesListener = null;
+
+  status("कॉल बंद हो गई।");
+}
+  // ===== INCOMING CALL LISTENER =====
+
+function listenForIncomingCalls() {
+  if (!currentUser) return;
+
+  const inboxRef = db.ref("callInbox/" + currentUser.uid);
+
+  if (incomingCallListener) {
+    inboxRef.off("child_added", incomingCallListener);
+  }
+
+  incomingCallListener = snapshot => {
+    const call = snapshot.val();
+
+    if (!call || call.status !== "ringing") return;
+    if (currentCallId) return;
+
+    const accept = confirm(
+      "📞 " + (call.type === "video" ? "Video" : "Voice") +
+      " Call आ रही है।\nक्या आप कॉल उठाना चाहते हैं?"
+    );
+
+    if (accept) {
+      acceptFamilyCall(snapshot.key, call);
+    } else {
+      rejectFamilyCall(snapshot.key, call);
+    }
+  };
+
+  inboxRef.on("child_added", incomingCallListener);
+}
+
+// ===== ACCEPT CALL =====
+
+async function acceptFamilyCall(callId, call) {
+  try {
+    currentCallId = callId;
+    createCallWindow();
+
+    $("callHeading").textContent = "Incoming " + call.type + " Call";
+
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: call.type === "video"
+    });
+
+    $("localVideo").srcObject = localStream;
+    $("localVideo").style.display =
+      call.type === "video" ? "block" : "none";
+
+    peerConnection = new RTCPeerConnection(callServers);
+
+    localStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, localStream);
+    });
+
+    peerConnection.ontrack = event => {
+      $("remoteVideo").srcObject = event.streams[0];
+    };
+
+    peerConnection.onicecandidate = event => {
+      if (event.candidate) {
+        db.ref("callRooms/" + callId + "/calleeCandidates")
+          .push(event.candidate.toJSON());
+      }
+    };
+
+    const roomRef = db.ref("callRooms/" + callId);
+    const room = await roomRef.once("value");
+    const data = room.val();
+
+    if (!data || !data.offer) {
+      throw new Error("Call offer नहीं मिला");
+    }
+
+    await peerConnection.setRemoteDescription(
+      new RTCSessionDescription(data.offer)
+    );
+
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+
+    await roomRef.child("answer").set({
+      type: answer.type,
+      sdp: answer.sdp
+    });
+
+    showCallStatus("कॉल कनेक्ट हो रही है");
+
+  } catch (error) {
+    alert("Accept Call Error: " + error.message);
+    await endFamilyCall();
+  }
+}
+
+// ===== REJECT CALL =====
+
+async function rejectFamilyCall(callId, call) {
+  await db.ref("callRooms/" + callId).update({
+    status: "rejected"
+  });
+
+  await db.ref(
+    "callInbox/" + currentUser.uid + "/" + callId
+  ).remove();
+}
+  // ===== SEND INCOMING CALL NOTIFICATION =====
+
+async function sendCallInvite(receiverUid, callId, type) {
+  await db.ref(
+    "callInbox/" + receiverUid + "/" + callId
+  ).set({
+    callerUid: currentUser.uid,
+    callerName: fullName(
+      memberProfiles[currentUser.uid],
+      currentUser.email
+    ),
+    type: type,
+    status: "ringing",
+    createdAt: firebase.database.ServerValue.TIMESTAMP
+  });
+}
 async function openPrivate(uid,email){
   try{
     activeMode="private";
@@ -730,6 +1044,7 @@ auth.onAuthStateChanged(async u=>{
     }
 
     startMembers();
+    listenForIncomingCalls();
 
     activeMode="group";
     activeChatId=null;
